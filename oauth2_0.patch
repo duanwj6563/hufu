@@ -1,0 +1,445 @@
+Index: src/main/java/com/sunland/authentication/AuthenticationSuccessHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/authentication/AuthenticationSuccessHandler.java	(revision )
++++ src/main/java/com/sunland/authentication/AuthenticationSuccessHandler.java	(revision )
+@@ -0,0 +1,72 @@
++/**
++ *
++ */
++package com.sunland.authentication;
++
++import com.fasterxml.jackson.databind.ObjectMapper;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.security.authentication.BadCredentialsException;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.crypto.codec.Base64;
++import org.springframework.security.oauth2.common.exceptions.UnapprovedClientAuthenticationException;
++import org.springframework.security.oauth2.provider.ClientDetailsService;
++import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
++import org.springframework.stereotype.Component;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++import java.io.IOException;
++
++/**
++ * @author duanwj
++ */
++@Component("authenticationSuccessHandler")
++public class AuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
++
++    private Logger logger = LoggerFactory.getLogger(getClass());
++
++    @Autowired
++    private ObjectMapper objectMapper;
++    @Autowired
++    private ClientDetailsService clientDetailsService;
++
++    @Override
++    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
++                                        Authentication authentication) throws IOException, ServletException {
++
++        logger.info("登录成功");
++        String header = request.getHeader("Authorization");
++        if (header == null || !header.startsWith("Basic ")) {
++            throw new UnapprovedClientAuthenticationException("请求头没有client信息");
++        }
++        String[] tokens = extractAndDecodeHeader(header, request);
++
++        assert tokens.length == 2;
++
++        String clientId = tokens[0];
++        String clientSecret = tokens[1];
++
++    }
++
++    private String[] extractAndDecodeHeader(String header, HttpServletRequest request) throws IOException {
++        byte[] base64Token = header.substring(6).getBytes("UTF-8");
++
++        byte[] decoded;
++        try {
++            decoded = Base64.decode(base64Token);
++        } catch (IllegalArgumentException var7) {
++            throw new BadCredentialsException("Failed to decode basic authentication token");
++        }
++
++        String token = new String(decoded, "UTF-8");
++        int delim = token.indexOf(":");
++        if (delim == -1) {
++            throw new BadCredentialsException("Invalid basic authentication token");
++        } else {
++            return new String[]{token.substring(0, delim), token.substring(delim + 1)};
++        }
++    }
++}
+\ No newline at end of file
+Index: src/main/java/com/sunland/authentication/AuthenctiationFailureHandler.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/authentication/AuthenctiationFailureHandler.java	(revision )
++++ src/main/java/com/sunland/authentication/AuthenctiationFailureHandler.java	(revision )
+@@ -0,0 +1,42 @@
++/**
++ *
++ */
++package com.sunland.authentication;
++
++import com.fasterxml.jackson.databind.ObjectMapper;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.HttpStatus;
++import org.springframework.security.core.AuthenticationException;
++import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
++import org.springframework.stereotype.Component;
++
++import javax.servlet.ServletException;
++import javax.servlet.http.HttpServletRequest;
++import javax.servlet.http.HttpServletResponse;
++import java.io.IOException;
++
++/**
++ * @author duanwj
++ */
++@Component("authenctiationFailureHandler")
++public class AuthenctiationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
++
++    private Logger logger = LoggerFactory.getLogger(getClass());
++
++    @Autowired
++    private ObjectMapper objectMapper;
++
++    @Override
++    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
++                                        AuthenticationException exception) throws IOException, ServletException {
++
++        logger.info("登录失败");
++        response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
++        response.setContentType("application/json;charset=UTF-8");
++        response.getWriter().write(objectMapper.writeValueAsString(exception.getMessage()));
++
++    }
++
++}
+Index: pom.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- pom.xml	(date 1508119636000)
++++ pom.xml	(revision )
+@@ -90,6 +90,26 @@
+ 			<artifactId>fastjson</artifactId>
+ 			<version>1.2.7</version>
+ 		</dependency>
++		<!--oauth2授权-->
++		<dependency>
++			<groupId>org.springframework.security.oauth</groupId>
++			<artifactId>spring-security-oauth2</artifactId>
++		</dependency>
++		<!--jwt-->
++		<dependency>
++			<groupId>io.jsonwebtoken</groupId>
++			<artifactId>jjwt</artifactId>
++		</dependency>
++        <dependency>
++            <groupId>javax.servlet</groupId>
++            <artifactId>servlet-api</artifactId>
++            <version>2.5</version>
++        </dependency>
++		<dependency>
++			<groupId>javax.servlet</groupId>
++			<artifactId>servlet-api</artifactId>
++			<version>2.5</version>
++		</dependency>
+ 	</dependencies>
+ 		<build>
+ 		<plugins>
+Index: src/main/java/com/sunland/domain/Resources.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/domain/Resources.java	(revision )
++++ src/main/java/com/sunland/domain/Resources.java	(revision )
+@@ -0,0 +1,15 @@
++package com.sunland.domain;
++
++import javax.persistence.Entity;
++
++public class Resources {
++
++    private Integer id;
++    private String name;
++    private Integer parentId; //父类Id
++    private String parentName;
++    private String resUrl;//URL地址．例如：/videoType/query　　不需要项目名和http://xxx:8080
++    private Integer level;//级别 菜单的顺序
++    private String type;//类型，目录　菜单  按扭．．在spring security3安全权限中，涉及精确到按扭控制
++    private String description;
++}
+Index: src/main/java/com/sunland/config/ResourceServerConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/config/ResourceServerConfig.java	(revision )
++++ src/main/java/com/sunland/config/ResourceServerConfig.java	(revision )
+@@ -0,0 +1,9 @@
++package com.sunland.config;
++
++import org.springframework.context.annotation.Configuration;
++import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
++
++@Configuration
++@EnableResourceServer
++public class ResourceServerConfig {
++}
+Index: src/main/java/com/sunland/filter/JWTLoginFilter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/filter/JWTLoginFilter.java	(revision )
++++ src/main/java/com/sunland/filter/JWTLoginFilter.java	(revision )
+@@ -0,0 +1,29 @@
++package com.sunland.filter;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++import org.springframework.stereotype.Component;
++
++import javax.servlet.*;
++import java.io.IOException;
++
++@Component
++public class JWTLoginFilter implements Filter {
++    private final Logger logger = LoggerFactory.getLogger(JWTLoginFilter.class);
++
++    @Override
++    public void init(FilterConfig filterConfig) throws ServletException {
++
++    }
++
++    @Override
++    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
++        logger.info("【过滤器开始工作！】");
++        chain.doFilter(request, response);
++    }
++
++    @Override
++    public void destroy() {
++
++    }
++}
+Index: src/main/java/com/sunland/config/AuthorizationServerConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/config/AuthorizationServerConfig.java	(revision )
++++ src/main/java/com/sunland/config/AuthorizationServerConfig.java	(revision )
+@@ -0,0 +1,10 @@
++package com.sunland.config;
++
++import org.springframework.context.annotation.Configuration;
++import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
++
++@Configuration
++@EnableAuthorizationServer
++public class AuthorizationServerConfig {
++
++}
+Index: src/main/java/com/sunland/service/impl/RbacServiceImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/service/impl/RbacServiceImpl.java	(revision )
++++ src/main/java/com/sunland/service/impl/RbacServiceImpl.java	(revision )
+@@ -0,0 +1,36 @@
++package com.sunland.service.impl;
++
++import com.sunland.service.RbacService;
++import org.springframework.security.core.Authentication;
++import org.springframework.security.core.userdetails.UserDetails;
++import org.springframework.stereotype.Component;
++import org.springframework.util.AntPathMatcher;
++
++import javax.servlet.http.HttpServletRequest;
++import java.util.HashSet;
++import java.util.Set;
++
++@Component
++public class RbacServiceImpl implements RbacService {
++    private AntPathMatcher antPathMatcher = new AntPathMatcher();
++
++    @Override
++    public boolean hasPermission(HttpServletRequest request, Authentication authentication) {
++        Object principal = authentication.getPrincipal();
++        boolean hasPermission = false;
++        if (principal instanceof UserDetails) {
++            String username = ((UserDetails) principal).getUsername();
++            //获取用户url
++            Set<String> urls = new HashSet<>();
++            for (String url : urls) {
++                if (antPathMatcher.match(url, request.getRequestURI())) {
++                    hasPermission = true;
++                    break;
++                }
++            }
++        }
++
++        return hasPermission;
++    }
++
++}
+Index: src/test/java/com/sunland/springBoot/ApplicationTests.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/test/java/com/sunland/springBoot/ApplicationTests.java	(date 1508119636000)
++++ src/test/java/com/sunland/springBoot/ApplicationTests.java	(revision )
+@@ -13,8 +13,7 @@
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+-import com.alibaba.fastjson.JSON;
+-import java.util.List;
++import org.springframework.util.AntPathMatcher;
+ 
+ /**
+  * @author duanwj
+@@ -29,8 +28,9 @@
+ 
+     @Autowired
+     private UserRepository userRepository;
+-     @Autowired
+-     private UserRoleRepository userRoleRepository;
++    @Autowired
++    private UserRoleRepository userRoleRepository;
++
+     @Test
+     public void contextLoads() throws Exception {
+         mockMvc.perform(MockMvcRequestBuilders.get("/users")
+@@ -43,10 +43,14 @@
+         User u = userRepository.findByUsername("sa");
+         System.out.println(u.toString());
+     }
++
+     @Test
+     public void hello1() {
+        /* List<Object[]> list= userRoleRepository.findAllById(2);*/
+          /*System.out.println(JSON.toJSONString(list));*/
++        AntPathMatcher antPathMatcher = new AntPathMatcher();
++        boolean f = antPathMatcher.match("/user", "/user");
++        System.out.println("是否匹配" + f);
+     }
+ 
+ }
+Index: src/main/java/com/sunland/config/TokenStoreConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/config/TokenStoreConfig.java	(revision )
++++ src/main/java/com/sunland/config/TokenStoreConfig.java	(revision )
+@@ -0,0 +1,22 @@
++package com.sunland.config;
++
++import org.springframework.context.annotation.Bean;
++import org.springframework.security.oauth2.provider.token.TokenStore;
++import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
++import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
++
++public class TokenStoreConfig {
++    public static class JwtTokenConfig {
++        @Bean
++        public TokenStore jwtTokenStore() {
++            return new JwtTokenStore(jwtAccessTokenConverter());
++        }
++
++        @Bean
++        public JwtAccessTokenConverter jwtAccessTokenConverter() {
++            JwtAccessTokenConverter accessTokenConverter = new JwtAccessTokenConverter();
++            accessTokenConverter.setSigningKey("sanlands");
++            return accessTokenConverter;
++        }
++    }
++}
+Index: src/main/java/com/sunland/config/WebSecurityConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/config/WebSecurityConfig.java	(date 1508119636000)
++++ src/main/java/com/sunland/config/WebSecurityConfig.java	(revision )
+@@ -18,6 +18,8 @@
+ import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+ import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+ import org.springframework.security.core.userdetails.UserDetailsService;
++import org.springframework.security.web.authentication.AuthenticationFailureHandler;
++import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+ import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+ import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+ 
+@@ -29,9 +31,14 @@
+ @EnableGlobalMethodSecurity(prePostEnabled = true)
+ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+ 	@Autowired
+-   private DataSource dataSource;
+-   @Autowired
+-   private UserDetailsService userDetailsService;
++	private DataSource dataSource;
++	@Autowired
++	private UserDetailsService userDetailsService;
++	@Autowired
++	protected AuthenticationSuccessHandler authenticationSuccessHandler;
++
++	@Autowired
++	protected AuthenticationFailureHandler authenticationFailureHandler;
+ 	@Bean
+ 	@Override
+ 	protected AuthenticationManager authenticationManager() throws Exception {
+@@ -51,6 +58,8 @@
+ 		.and()
+ 		.formLogin()
+ 		.loginPage("/login")//指定登录页面
++				.successHandler(authenticationSuccessHandler)
++				.failureHandler(authenticationFailureHandler)
+ 		.defaultSuccessUrl("/hello")//登录成功以后跳转页面
+ 		.permitAll()
+ 				.and()
+Index: src/main/java/com/sunland/service/RbacService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/main/java/com/sunland/service/RbacService.java	(revision )
++++ src/main/java/com/sunland/service/RbacService.java	(revision )
+@@ -0,0 +1,16 @@
++package com.sunland.service;
++
++import org.springframework.security.core.Authentication;
++
++import javax.servlet.http.HttpServletRequest;
++
++public interface RbacService {
++    /**
++     * 权限控制
++     *
++     * @param request
++     * @param authentication
++     * @return
++     */
++    boolean hasPermission(HttpServletRequest request, Authentication authentication);
++}

@@ -1,0 +1,36 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+*.log
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+src/main/java/com/sunland/controller/TestController.java
+src/main/java/com/sunland/repository/reportform/
+/src/test/java/com/sunlands/feo/record/demoModel.java
+/src/test/java/com/sunlands/feo/record/recordTest.java
+/src/test/java/com/sunlands/feo/record/commonTest.java
+/src/test/java/com/sunlands/feo/record/recordMockTest.java
+/src/test/java/com/sunlands/feo/record/recordTestOne.java
+/src/main/resources/application-test.properties
+/src/main/resources/application-dev.properties
+/src/main/resources/application-local.properties
+/src/main/resources/application.properties
