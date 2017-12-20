@@ -4,6 +4,7 @@ import com.feo.application.OrganizationService;
 import com.feo.application.UserService;
 import com.feo.application.record.RecordService;
 import com.feo.common.AssertUtil;
+import com.feo.common.ConversionsUtil;
 import com.feo.common.StrUtil;
 import com.feo.common.UserUtil;
 import com.feo.domain.model.enums.OrganizationLevel;
@@ -110,8 +111,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
         };
         Page<QualityWeek> page = qualityWeekRepository.findAll(je, pageable);
-        List<ReportReturn> reportReturn=new ArrayList<>();
-        Page<ReportReturn> page1=new PageImpl<ReportReturn>(reportReturn,pageable,page.getTotalPages());
+        List<ReportReturn> reportReturn = ConversionsUtil.modeList2Dto(page.getContent());
+        Page<ReportReturn> page1 = new PageImpl<ReportReturn>(reportReturn, pageable, page.getTotalPages());
         return page1;
     }
 

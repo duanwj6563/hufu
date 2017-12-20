@@ -2,7 +2,7 @@ package com.feo.port.rest.dto.report;
 
 import java.util.Date;
 
-public class ReportReturn extends PageParameters {
+public class ReportReturn {
     private Long id;
     private Long strategyId;
     private String reportName;//报告名称

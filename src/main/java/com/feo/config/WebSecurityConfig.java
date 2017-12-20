@@ -80,6 +80,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         //解决静态资源被拦截的问题
         web.ignoring().antMatchers("/strategies/*/download", "/strategies/batchDownload", "/boutiques/batchDownloadRecords");
         web.ignoring().antMatchers("/reports/*/download");
+        web.ignoring().antMatchers("/**");//开发使用
     }
 
     @Autowired
