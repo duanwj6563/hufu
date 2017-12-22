@@ -181,7 +181,7 @@
     </profiles>
 
     <build>
-        <finalName>app-hufu</finalName>
+        <finalName>hufu</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
